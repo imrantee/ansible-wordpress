@@ -1,0 +1,114 @@
+---
+# tasks file for wordpress
+
+    - name: Adding Remi Repo
+      yum:
+        name: "http://rpms.remirepo.net/enterprise/remi-release-7.rpm"
+        state: present
+
+    - name: Installing HTTP
+      yum:
+        name: httpd
+        state: present
+
+    - name: Installing PHP
+      yum:
+        name: ['php' , 'php-bz2' , 'php-mysql' , 'php-curl' , 'php-gd' , 'php-intl' , 'php-common' , 'php-mbstring' , 'php-xml']
+        state: present
+        enablerepo: remi-php74
+
+    - name: Removing httpd default site
+      file:
+        path: "/etc/httpd/conf.d/welcome.conf"
+        state: absent
+
+    - name: Start Services
+      systemd:
+          name: httpd
+          state: started
+          enabled: yes
+
+    - name: Adding MariaDB-10.6 Repo
+      copy:
+        dest: /etc/yum.repos.d/MariaDB.repo
+        content: |
+           [mariadb]
+           name = MariaDB
+           baseurl = http://yum.mariadb.org/10.6/centos7-amd64
+           gpgkey=https://yum.mariadb.org/RPM-GPG-KEY-MariaDB
+           gpgcheck=1
+
+    - name: Installing MariaDB-10.6
+      yum:
+        name: ['MariaDB-server' , 'MariaDB-client']
+        state: present
+        enablerepo: mariadb
+
+    - name: Installing python mysql dependency
+      yum: 
+       name: python-PyMySQL
+       state: present
+        
+    - name: Start Services
+      systemd:
+          name: mariadb
+          state: started
+          enabled: yes
+
+    - name: Setting up MariaDB root Password
+      mysql_user:
+          name: root
+          host: localhost
+          password: '{{ wp_mysql_password }}'
+          check_implicit_admin: yes
+          login_user: root
+          login_password: ""
+          state: present
+          login_unix_socket: /var/lib/mysql/mysql.sock
+
+    - name: Adding my.cnf
+      copy:
+        dest: ~/.my.cnf
+        content: |
+           [client]
+           user = root
+           password = '{{ wp_mysql_password }}'
+    
+    - name: Creating Database
+      mysql_db: 
+         name: '{{ wp_mysql_db }}' 
+         state: present
+
+    - name: Creating Database User
+      mysql_user:
+         name: '{{ wp_mysql_user }}'
+         password: '{{ wp_mysql_password }}'
+         priv: '*.*:ALL'
+         state: present
+         host: '%'
+
+    - name: Downloading wordpress
+      unarchive:
+        src: http://www.wordpress.org/latest.tar.gz
+        dest: /var/www/html/
+        remote_src: yes
+
+    - name: Renaming sample wordpress config file
+      command: "mv /var/www/html/wordpress/wp-config-sample.php /var/www/html/wordpress/wp-config.php"
+
+    - name: Updating WordPress config file
+      lineinfile: dest=/var/www/html/wordpress/wp-config.php regexp={{ item.regexp }} line={{ item.line }}
+      with_items:
+        - {'regexp': "define\\( 'DB_NAME', '(database_name_here)+' \\);", 'line': "define('DB_NAME', '{{wp_mysql_db}}');"}
+        - {'regexp': "define\\( 'DB_USER', '(username_here)+' \\);", 'line': "define('DB_USER', '{{wp_mysql_user}}');"}
+        - {'regexp': "define\\( 'DB_PASSWORD', '(password_here)+' \\);", 'line': "define('DB_PASSWORD', '{{wp_mysql_password}}');"}
+        - {'regexp': "define\\( 'DB_HOST', '(localhost)+' \\);", 'line': "define('DB_HOST', '{{wp_mysql_host}}');"}
+
+    - name: Update default Apache site
+      lineinfile:
+       dest=/etc/httpd/conf/httpd.conf
+       line="DocumentRoot /var/www/html/wordpress"
+
+    - name: Update SELinux Policy to Allow Apache to Connect Database
+      command: '/usr/sbin/setsebool -P httpd_can_network_connect_db 1'
+

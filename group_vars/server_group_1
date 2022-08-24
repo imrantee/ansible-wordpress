@@ -1,0 +1,4 @@
+wp_mysql_db: wp_db
+wp_mysql_user: wp_db_user
+wp_mysql_password: M1dNightM00n
+wp_mysql_host: "{{ansible_default_ipv4.address}}"

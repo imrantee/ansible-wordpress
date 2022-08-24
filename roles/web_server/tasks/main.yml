@@ -1,0 +1,29 @@
+---
+# tasks file for web_server
+    - name: Adding Remi Repo
+      yum:
+        name: "http://rpms.remirepo.net/enterprise/remi-release-7.rpm"
+        state: present
+
+    - name: Installing HTTP
+      yum:
+        name: httpd
+        state: present
+        
+    - name: Installing PHP
+      yum:
+        name: ['php' , 'php-bz2' , 'php-mysql' , 'php-curl' , 'php-gd' , 'php-intl' , 'php-common' , 'php-mbstring' , 'php-xml']
+        state: present
+        enablerepo: remi-php74
+
+    - name: Removing httpd default site
+      file:
+        path: "/etc/httpd/conf.d/welcome.conf"
+        state: absent
+
+    - name: Start Services
+      systemd:
+          name: httpd
+          state: started
+          enabled: yes
+

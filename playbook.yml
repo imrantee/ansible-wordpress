@@ -1,0 +1,21 @@
+- name: 'Install Wordpress'
+  hosts: server_group_1
+  pre_tasks:
+    - name: Installing EPEL Repo
+      yum: 
+        name: ['epel-release'] 
+        state: present
+  roles:
+    - web_server
+    - mariadb_server
+    - wordpress
+
+  post_tasks:
+    - name: Re/Start Services
+      systemd:
+          name: '{{ item }}'
+          state: restarted
+      with_items:
+            - mariadb
+            - httpd
+

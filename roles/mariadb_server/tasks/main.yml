@@ -1,0 +1,60 @@
+---
+# tasks file for mariadb_server
+    - name: Adding MariaDB-10.6 Repo
+      copy:
+        dest: /etc/yum.repos.d/MariaDB.repo
+        content: |
+           [mariadb]
+           name = MariaDB
+           baseurl = http://yum.mariadb.org/10.6/centos7-amd64
+           gpgkey=https://yum.mariadb.org/RPM-GPG-KEY-MariaDB
+           gpgcheck=1
+
+    - name: Installing MariaDB-10.6
+      yum:
+        name: ['MariaDB-server' , 'MariaDB-client']
+        state: present
+        enablerepo: mariadb
+
+    - name: Installing python mysql dependency
+      yum: 
+       name: python-PyMySQL
+       state: present
+        
+    - name: Start Services
+      systemd:
+          name: mariadb
+          state: started
+          enabled: yes
+
+    - name: Setting up MariaDB root Password
+      mysql_user:
+          name: root
+          host: localhost
+          password: '{{ wp_mysql_password }}'
+          check_implicit_admin: yes
+          login_user: root
+          login_password: ""
+          state: present
+          login_unix_socket: /var/lib/mysql/mysql.sock
+
+    - name: Adding my.cnf
+      copy:
+        dest: ~/.my.cnf
+        content: |
+           [client]
+           user = root
+           password = '{{ wp_mysql_password }}'
+    
+    - name: Creating Database
+      mysql_db: 
+         name: '{{ wp_mysql_db }}' 
+         state: present
+
+    - name: Creating Database User
+      mysql_user:
+         name: '{{ wp_mysql_user }}'
+         password: '{{ wp_mysql_password }}'
+         priv: '*.*:ALL'
+         state: present
+         host: '%'
