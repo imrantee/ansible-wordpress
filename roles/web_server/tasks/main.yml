@@ -21,7 +21,7 @@
         path: "/etc/httpd/conf.d/welcome.conf"
         state: absent
 
-    - name: Start Services
+    - name: Start Apache Service
       systemd:
           name: httpd
           state: started
